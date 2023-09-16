@@ -39,6 +39,11 @@ def analyze_sentiment(reviews: list) -> list:
     return results
 
 
+# Function to get all yelp reviews from a specific business id and returns a list
+def get_yelp_reviews(business_id: str) -> list:
+    return
+
+
 @app.get("/")
 async def root():
     return "Hello, world!";
