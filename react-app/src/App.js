@@ -1,7 +1,17 @@
 import React from "react";
-import KeplerMap from "./KeplerMap";
+
+const mapBoxAPIKey = process.env.MAPBOX_TOKEN;
 
 function App() {
+  // Kepler.gl configuration to be centered in Masacheusettes
+  const config = {
+    mapState: {
+      latitude: 42.4072,
+      longitude: 71.3824,
+      zoom: 8,
+    },
+  };
+
   return (
     <div className="App">
       <header>
