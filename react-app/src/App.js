@@ -1,5 +1,6 @@
 import React from "react";
-import KeplerMap from "./KeplerMap";
+
+const mapBoxAPIKey = process.env.MAPBOX_TOKEN;
 
 function App() {
   return (
