@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Kepler.gl embedded map</title>
+
+    <!-- Uber Font -->
+    <link
+      rel="stylesheet"
+      href="https://d1a3f4spazzrp4.cloudfront.net/kepler.gl/uber-fonts/4.0.0/superfine.css"
+    />
+
+    <!-- MapBox css -->
+    <link
+      href="https://api.tiles.mapbox.com/mapbox-gl-js/v1.1.1/mapbox-gl.css"
+      rel="stylesheet"
+    />
+
+    <!-- ... Other meta tags and scripts ... -->
+
+    <!-- Load Kepler.gl -->
+    <script
+      src="https://unpkg.com/kepler.gl@3.0.0-alpha.0/umd/keplergl.min.js"
+      crossorigin
+    ></script>
+
+    <style type="text/css">
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+      /* Add your custom CSS styles here if needed */
+    </style>
+
+    <!-- MapBox token -->
+    <script>
+      const MAPBOX_TOKEN =
+        "pk.eyJ1IjoiYWR2aXRpLW1pc2hyYSIsImEiOiJjbG1ta3NpZDIwa29vMndud2RhNmxuamZwIn0.xtfbb0ftJihn1Ud2VGQ2Dw";
+      // ...
+    </script>
+  </head>
+  <body>
+    <!-- We will put our React component inside this div. -->
+    <div id="app">
+      <!-- Kepler.gl map will be placed here -->
+    </div>
+
+    <!-- Load React component and interact with Kepler map store here -->
+  </body>
+</html>
