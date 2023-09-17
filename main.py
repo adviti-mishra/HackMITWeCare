@@ -7,6 +7,7 @@ import random
 from ibm_watson import NaturalLanguageUnderstandingV1
 from ibm_watson.natural_language_understanding_v1 import Features, EmotionOptions
 from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
+from transformers import BartForConditionalGeneration, BartTokenizer
 
 authenticator = IAMAuthenticator(IBM_API_KEY)
 natural_language_understanding = NaturalLanguageUnderstandingV1(
@@ -92,12 +93,21 @@ def write_to_csv(data, file_path):
     """Write hospital names, latitude, longitude, average sentiments, and average emotion scores to a new CSV file."""
     with open(file_path, 'w', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow(["Hospital Name", "Latitude", "Longitude", "Average Sentiment", "Joy", "Sadness", "Anger", "Fear", "Disgust"])  # header
+        writer.writerow(["Hospital Name", "Latitude", "Longitude", "Average Sentiment", "Joy", "Sadness", "Anger", "Fear", "Disgust", "summary"])  # header
         for item in data:
-            writer.writerow([item["name"], item["latitude"], item["longitude"], item["score"], item["emotions"]["joy"], item["emotions"]["sadness"], item["emotions"]["anger"], item["emotions"]["fear"], item["emotions"]["disgust"]])
+            writer.writerow([item["name"], item["latitude"], item["longitude"], item["score"], item["emotions"]["joy"], item["emotions"]["sadness"], item["emotions"]["anger"], item["emotions"]["fear"], item["emotions"]["disgust"], item["summary"]])
 
     return f"Data written successfully to {file_path}"
 
+def get_summary(reviews):
+    result_string = ''.join(reviews)
+    model_name = "facebook/bart-large-cnn"
+    model = BartForConditionalGeneration.from_pretrained(model_name)
+    tokenizer = BartTokenizer.from_pretrained(model_name)
+    inputs = tokenizer.encode("summarize: " + result_string, return_tensors="pt", max_length=1024, truncation=True)
+    summary_ids = model.generate(inputs, max_length=150, min_length=30, length_penalty=2.0, num_beams=4, early_stopping=True)
+    summary = tokenizer.decode(summary_ids[0], skip_special_tokens=True)
+    return summary
 
 @app.get("/")
 async def root():
@@ -109,8 +119,9 @@ async def root():
         avg_sentiment, avg_emotions = calculate_average_sentiment(item["reviews"])
         item["score"] = avg_sentiment
         item["emotions"] = avg_emotions
+        item["summary"] = get_summary(item["reviews"])
 
     # Write results to new CSV file
-    message = write_to_csv(extracted_data, "Final_MA_dataset1.csv")
+    message = write_to_csv(extracted_data, "Final_MA_dataset2.csv")
 
     return {"message": message}
