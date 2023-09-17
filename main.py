@@ -45,17 +45,29 @@ def calculate_normalized_score(analysis):
     normalized_score = (sentiment_score + 1) / 2
     return normalized_score
 
+
 def calculate_average_sentiment(reviews):
-    """Calculate average sentiment for a list of reviews."""
+    """Calculate average sentiment and emotion scores for a list of reviews."""
     sentiment_scores = []
+    emotion_totals = {"joy": 0, "sadness": 0, "anger": 0, "fear": 0, "disgust": 0}
+
     for review in reviews:
         analysis = analyze_sentiment(review)  # analyze_sentiment now expects a single review
         if analysis:  # Check if a valid analysis is returned
             sentiment_score = calculate_normalized_score(analysis)
             print(f"Finalized normalized score: {sentiment_score}")
             sentiment_scores.append(sentiment_score)
-    average_sentiment = sum(sentiment_scores) / len(sentiment_scores)
-    return average_sentiment
+
+            for emotion in emotion_totals:
+                emotion_totals[emotion] += analysis["emotion"]["document"]["emotion"][emotion]
+
+    # Calculate average sentiment and emotions
+    num_reviews = len(sentiment_scores)
+    average_sentiment = sum(sentiment_scores) / num_reviews
+    average_emotions = {emotion: emotion_totals[emotion] / num_reviews for emotion in emotion_totals}
+
+    return average_sentiment, average_emotions
+
 
 def extract_data_from_csv(file_path):
     """Extract name, latitude, longitude, and reviews for each hospital from the CSV."""
@@ -77,12 +89,12 @@ def extract_data_from_csv(file_path):
 
 
 def write_to_csv(data, file_path):
-    """Write hospital names, latitude, longitude, and their average sentiments to a new CSV file."""
+    """Write hospital names, latitude, longitude, average sentiments, and average emotion scores to a new CSV file."""
     with open(file_path, 'w', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow(["Hospital Name", "Latitude", "Longitude", "Average Sentiment"])  # header
+        writer.writerow(["Hospital Name", "Latitude", "Longitude", "Average Sentiment", "Joy", "Sadness", "Anger", "Fear", "Disgust"])  # header
         for item in data:
-            writer.writerow([item["name"], item["latitude"], item["longitude"], item["score"]])
+            writer.writerow([item["name"], item["latitude"], item["longitude"], item["score"], item["emotions"]["joy"], item["emotions"]["sadness"], item["emotions"]["anger"], item["emotions"]["fear"], item["emotions"]["disgust"]])
 
     return f"Data written successfully to {file_path}"
 
@@ -91,12 +103,14 @@ def write_to_csv(data, file_path):
 async def root():
     input_file_path = "MA_dataset.csv"
     extracted_data = extract_data_from_csv(input_file_path)
-    # Calculate average sentiment for each hospital and update the data with the score
+
+    # Calculate average sentiment for each hospital and update the data with the score and emotions
     for item in extracted_data:
-        avg_sentiment = calculate_average_sentiment(item["reviews"])
-        item["score"] = avg_sentiment  # Add the score to the data for each hospital
+        avg_sentiment, avg_emotions = calculate_average_sentiment(item["reviews"])
+        item["score"] = avg_sentiment
+        item["emotions"] = avg_emotions
 
     # Write results to new CSV file
-    message = write_to_csv(extracted_data, "Final_MA_dataset.csv")
+    message = write_to_csv(extracted_data, "Final_MA_dataset1.csv")
 
     return {"message": message}
