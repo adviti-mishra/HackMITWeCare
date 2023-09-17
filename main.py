@@ -23,19 +23,27 @@ app = FastAPI()
 def analyze_sentiment(reviews: list) -> list:
     results = []
     for review in reviews:
-        response = natural_language_understanding.analyze(
-            text=review,
-            features=Features(emotion=EmotionOptions())).get_result()
-        results.append(response)
+        if len(review) > 20:  # Assuming a minimum length for meaningful analysis
+            print(f"Scoring review: {review}")  # Printing the review being scored
+            # response = natural_language_understanding.analyze(
+            #     text=review,
+            #     features=Features(emotion=EmotionOptions())).get_result()
+            # results.append(response)
+            response = {"emotion_analysis":{"usage":{"text_units":1,"text_characters":144,"features":1},"language":"en","emotion":{"document":{"emotion":{"sadness":0.180315,"joy":0.618834,"fear":0.136986,"disgust":0.016538,"anger":0.008994}}}}}
+            results.append(response)
+        else:
+            print(f"Review too short for scoring: {review}")
     return results
+
 
 def calculate_normalized_score(analysis):
     """Calculate sentiment score from emotion analysis."""
-    joy = analysis["emotion"]["document"]["emotion"]["joy"]
-    sadness = analysis["emotion"]["document"]["emotion"]["sadness"]
-    anger = analysis["emotion"]["document"]["emotion"]["anger"]
-    fear = analysis["emotion"]["document"]["emotion"]["fear"]
-    disgust = analysis["emotion"]["document"]["emotion"]["disgust"]
+    emotions = analysis["emotion_analysis"]["emotion"]["document"]["emotion"]
+    joy = emotions["joy"]
+    sadness = emotions["sadness"]
+    anger = emotions["anger"]
+    fear = emotions["fear"]
+    disgust = emotions["disgust"]
     sentiment_score = joy - (sadness + anger + fear + disgust) / 4
     # Normalize the score to range between 0 and 1
     normalized_score = (sentiment_score + 1) / 2
@@ -58,20 +66,18 @@ def extract_data_from_csv(file_path):
     with open(file_path, 'r', encoding='utf-8-sig') as file:
         reader = csv.DictReader(file)
         for row in reader:
-            reviews = row["reviews"].strip("\"")  # Removing extra double quotes
+            reviews = row["reviews"]
             if reviews:  # Check if the reviews column isn't empty
-                reviews_array = reviews.split(",")  # Splitting by comma to create an array
+                # Given the structure of your data, the reviews seem to be encapsulated in double quotes
+                # and separated by commas within the double quotes. Therefore, we'll handle them as single strings.
                 data.append({
                     "name": row["name"],
                     "latitude": row["lat"],
                     "longitude": row["long"],
-                    "reviews": reviews_array
+                    "reviews": [reviews]  # Wrapping it in a list to keep the structure consistent
                 })
     return data
 
-def get_random_score():
-    """Generate a random score between 1 and 10."""
-    return random.uniform(1, 10)
 
 def write_to_csv(data, file_path):
     """Write hospital names, latitude, longitude, and their average sentiments to a new CSV file."""
@@ -79,7 +85,7 @@ def write_to_csv(data, file_path):
         writer = csv.writer(file)
         writer.writerow(["Hospital Name", "Latitude", "Longitude", "Average Sentiment"])  # header
         for item in data:
-            writer.writerow([item["name"], item["latitude"], item["longitude"], get_random_score()])
+            writer.writerow([item["name"], item["latitude"], item["longitude"], item["score"]])
 
     return f"Data written successfully to {file_path}"
 
@@ -88,17 +94,16 @@ def write_to_csv(data, file_path):
 async def root():
     input_file_path = "MA_dataset.csv"
     extracted_data = extract_data_from_csv(input_file_path)
-    write_to_csv(extracted_data, "Final_MA_dataset.csv")
-    return {"message": f"Number of hospitals extracted: {len(extracted_data)} and data written to Final_MA_dataset.csv"}
 
-    # Calculate average sentiment for each hospital
-    average_sentiments = {}
-    for hospital, reviews in reviews_data.items():
-        print(hospital)
-        avg_sentiment = calculate_average_sentiment(reviews)
-        average_sentiments[hospital] = avg_sentiment
+    # Limit to first 3 hospitals for testing
+    extracted_data = extracted_data[:3]
+
+    # Calculate average sentiment for each hospital and update the data with the score
+    for item in extracted_data:
+        avg_sentiment = calculate_average_sentiment(item["reviews"])
+        item["score"] = avg_sentiment  # Add the score to the data for each hospital
 
     # Write results to new CSV file
-    message = write_to_csv(average_sentiments, output_file_path)
+    message = write_to_csv(extracted_data, "Final_MA_dataset.csv")
 
     return {"message": message}
