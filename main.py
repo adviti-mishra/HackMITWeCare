@@ -25,20 +25,20 @@ def analyze_sentiment(reviews: list) -> list:
     for review in reviews:
         if len(review) > 20:  # Assuming a minimum length for meaningful analysis
             print(f"Scoring review: {review}")  # Printing the review being scored
-            # response = natural_language_understanding.analyze(
-            #     text=review,
-            #     features=Features(emotion=EmotionOptions())).get_result()
-            # results.append(response)
-            response = {"emotion_analysis":{"usage":{"text_units":1,"text_characters":144,"features":1},"language":"en","emotion":{"document":{"emotion":{"sadness":0.180315,"joy":0.618834,"fear":0.136986,"disgust":0.016538,"anger":0.008994}}}}}
+            response = natural_language_understanding.analyze(
+                text=review,
+                features=Features(emotion=EmotionOptions())).get_result()
             results.append(response)
+            print(response)
         else:
             print(f"Review too short for scoring: {review}")
     return results
 
 
+
 def calculate_normalized_score(analysis):
     """Calculate sentiment score from emotion analysis."""
-    emotions = analysis["emotion_analysis"]["emotion"]["document"]["emotion"]
+    emotions = analysis["emotion"]["document"]["emotion"]
     joy = emotions["joy"]
     sadness = emotions["sadness"]
     anger = emotions["anger"]
