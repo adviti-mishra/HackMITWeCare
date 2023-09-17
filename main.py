@@ -23,13 +23,13 @@ app = FastAPI()
 # Function to analyze sentiment of each review using IBM Watson NLU.
 def analyze_sentiment(review: str) -> dict:
     if len(review) > 20:  # Assuming a minimum length for meaningful analysis
-        print(f"Scoring reviews: {review}")  # Printing the review being scored
+        # print(f"Scoring reviews: {review}")
         response = natural_language_understanding.analyze(
             text=review,
             features=Features(emotion=EmotionOptions())).get_result()
         return response
     else:
-        print(f"Review too short for scoring: {review}")
+        #print(f"Review too short for scoring: {review}")
         return None
 
 
@@ -107,6 +107,8 @@ def get_summary(reviews):
     inputs = tokenizer.encode("summarize: " + result_string, return_tensors="pt", max_length=1024, truncation=True)
     summary_ids = model.generate(inputs, max_length=150, min_length=30, length_penalty=2.0, num_beams=4, early_stopping=True)
     summary = tokenizer.decode(summary_ids[0], skip_special_tokens=True)
+    print("Summary:")
+    print(summary)
     return summary
 
 @app.get("/")
