@@ -12,7 +12,7 @@ function App() {
         <div>
           <iframe
             title="Embedded HTML"
-            src="https://kepler.gl/demo?mapUrl=https://gist.githubusercontent.com/adviti-mishra/301aa1ee54bea24fe0ee1854e40fa727/raw/a52d929b572b441acf8ae2b83ffac56f5719cc1e/mapFinal3.json"
+            src="https://kepler.gl/demo?mapUrl=https://gist.githubusercontent.com/adviti-mishra/a2cf7f08bceb88aa6153447e81edd79c/raw/7701fae7c6783831ff1f4f91a65abedfa6979d75/mapSentiments.json"
             width="100%"
             height="600px"
             style={{ overflow: "hidden" }}
