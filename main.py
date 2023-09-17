@@ -65,8 +65,14 @@ def get_yelp_reviews(business_id: str):
         return []
 
 
+# Adviti will work on function below
 def calculate_review_sentiment(review):
+    # Should return a number, 0 < x < 1 that represents individual review sentiment
+    return
 
+# We will probably need below function too
+def calculate_average_sentiment_for_hopsital(review_sentiment_list):
+    # Should return a number, 0 < x < 1 that represents ALL review sentiment for specific hospital
     return
 
 @app.get("/")
