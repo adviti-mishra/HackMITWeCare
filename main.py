@@ -40,7 +40,7 @@ def analyze_sentiment(reviews: list) -> list:
     return results
 
 
-# Function to get all yelp reviews from a specific business id and returns a list
+# Function to get all yelp reviews from a specific bu`siness id and returns a list
 def get_yelp_reviews(business_id: str):
     # API endpoint
     headers = {
@@ -66,15 +66,67 @@ def get_yelp_reviews(business_id: str):
 
 
 # Adviti will work on function below
-def calculate_review_sentiment(review):
-    # Should return a number, 0 < x < 1 that represents individual review sentiment
-    return
+def calculate_sentiment_from_analysis(analysis):
+    """Calculate sentiment score from emotion analysis."""
+    joy = analysis["emotion"]["document"]["emotion"]["joy"]
+    sadness = analysis["emotion"]["document"]["emotion"]["sadness"]
+    sentiment_score = joy - sadness
+    # Normalize the score to range between 0 and 1
+    normalized_score = (sentiment_score + 1) / 2
+    return normalized_score
 
-# We will probably need below function too
-def calculate_average_sentiment_for_hopsital(review_sentiment_list):
-    # Should return a number, 0 < x < 1 that represents ALL review sentiment for specific hospital
-    return
+def extract_reviews_from_csv(file_path):
+    """Extract reviews for each hospital from the CSV, safely handling missing keys."""
+    reviews_data = {}
+    with open(file_path, 'r') as file:
+        reader = csv.DictReader(file)
+        for row in reader:
+            # BUG BELOW
+            print(row)
+            reviews_data[row["name"]] = row[" reviews"]
+            # BUG ABOVE
+    return reviews_data
+
+def calculate_average_sentiment(reviews):
+    """Calculate average sentiment for a list of reviews."""
+    sentiment_scores = []
+    for review in reviews:
+        analysis = analyze_sentiment([review])  # Since analyze_sentiment expects a list
+        sentiment_score = calculate_sentiment_from_analysis(analysis[0])  # Get the first result
+        sentiment_scores.append(sentiment_score)
+
+    average_sentiment = sum(sentiment_scores) / len(sentiment_scores)
+    return average_sentiment
+
+
+def write_to_csv(data, file_path):
+    """Write hospital names and their average sentiments to a new CSV file."""
+    with open(file_path, 'w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(["Hospital Name", "Average Sentiment"])  # header
+        for hospital, sentiment in data.items():
+            writer.writerow([hospital, sentiment])
+
+    return f"Data written successfully to {file_path}"
+
 
 @app.get("/")
 async def root():
-    return get_yelp_reviews("massachusetts-general-hospital-boston-4")
+    input_file_path = "MA_dataset.csv"
+    output_file_path = "Final_MA_dataset.csv"
+
+    # Calculate average sentiment for each hospital
+    reviews_data = extract_reviews_from_csv(input_file_path)
+    print(f"Number of hospitals extracted: {len(reviews_data)}")
+
+    # Calculate average sentiment for each hospital
+    average_sentiments = {}
+    for hospital, reviews in reviews_data.items():
+        print(hospital)
+        avg_sentiment = calculate_average_sentiment(reviews)
+        average_sentiments[hospital] = avg_sentiment
+
+    # Write results to new CSV file
+    message = write_to_csv(average_sentiments, output_file_path)
+
+    return {"message": message}
