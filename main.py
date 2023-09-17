@@ -20,20 +20,16 @@ natural_language_understanding.set_service_url(service_url)
 app = FastAPI()
 
 # Function to analyze sentiment of each review using IBM Watson NLU.
-def analyze_sentiment(reviews: list) -> list:
-    results = []
-    for review in reviews:
-        if len(review) > 20:  # Assuming a minimum length for meaningful analysis
-            print(f"Scoring review: {review}")  # Printing the review being scored
-            response = natural_language_understanding.analyze(
-                text=review,
-                features=Features(emotion=EmotionOptions())).get_result()
-            results.append(response)
-            print(response)
-        else:
-            print(f"Review too short for scoring: {review}")
-    return results
-
+def analyze_sentiment(review: str) -> dict:
+    if len(review) > 20:  # Assuming a minimum length for meaningful analysis
+        print(f"Scoring reviews: {review}")  # Printing the review being scored
+        response = natural_language_understanding.analyze(
+            text=review,
+            features=Features(emotion=EmotionOptions())).get_result()
+        return response
+    else:
+        print(f"Review too short for scoring: {review}")
+        return None
 
 
 def calculate_normalized_score(analysis):
@@ -53,10 +49,11 @@ def calculate_average_sentiment(reviews):
     """Calculate average sentiment for a list of reviews."""
     sentiment_scores = []
     for review in reviews:
-        analysis = analyze_sentiment([review])  # Since analyze_sentiment expects a list
-        sentiment_score = calculate_normalized_score(analysis[0])  # Get the first result
-        sentiment_scores.append(sentiment_score)
-
+        analysis = analyze_sentiment(review)  # analyze_sentiment now expects a single review
+        if analysis:  # Check if a valid analysis is returned
+            sentiment_score = calculate_normalized_score(analysis)
+            print(f"Finalized normalized score: {sentiment_score}")
+            sentiment_scores.append(sentiment_score)
     average_sentiment = sum(sentiment_scores) / len(sentiment_scores)
     return average_sentiment
 
@@ -94,10 +91,6 @@ def write_to_csv(data, file_path):
 async def root():
     input_file_path = "MA_dataset.csv"
     extracted_data = extract_data_from_csv(input_file_path)
-
-    # Limit to first 3 hospitals for testing
-    extracted_data = extracted_data[:3]
-
     # Calculate average sentiment for each hospital and update the data with the score
     for item in extracted_data:
         avg_sentiment = calculate_average_sentiment(item["reviews"])
