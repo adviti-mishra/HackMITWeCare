@@ -3,6 +3,7 @@ from constants import IBM_API_KEY
 from constants import YELP_API_KEY
 import csv
 import requests
+import random
 from ibm_watson import NaturalLanguageUnderstandingV1
 from ibm_watson.natural_language_understanding_v1 import Features, EmotionOptions
 from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
@@ -18,94 +19,82 @@ natural_language_understanding.set_service_url(service_url)
 
 app = FastAPI()
 
-
-# Function to read CSV and return list of reviews
-def read_csv(filename: str) -> list:
-    reviews = []
-    with open(filename, newline='', encoding='utf-8') as csvfile:
-        reader = csv.DictReader(csvfile)
-        for row in reader:
-            reviews.append(row['Review'])
-    return reviews
-
-
 # Function to analyze sentiment of each review using IBM Watson NLU.
-def analyze_sentiment(reviews: list) -> list:
-    results = []
-    for review in reviews:
+def analyze_sentiment(review: str) -> dict:
+    if len(review) > 20:  # Assuming a minimum length for meaningful analysis
+        print(f"Scoring reviews: {review}")  # Printing the review being scored
         response = natural_language_understanding.analyze(
             text=review,
             features=Features(emotion=EmotionOptions())).get_result()
-        results.append(response)
-    return results
-
-
-# Function to get all yelp reviews from a specific bu`siness id and returns a list
-def get_yelp_reviews(business_id: str):
-    # API endpoint
-    headers = {
-        'Authorization': f"Bearer {YELP_API_KEY}",
-    }
-
-    url = f"https://api.yelp.com/v3/businesses/{business_id}/reviews?limit=20"
-
-    # Send the GET request
-    response = requests.get(url, headers=headers)
-
-    # Check if the request was successful
-    if response.status_code == 200:
-        data = response.json()
-        # Extract the text of the reviews and return
-        for row in data["reviews"]:
-            print(row["text"])
-        return data['reviews']
+        return response
     else:
-        # Print error and return empty list if unsuccessful
-        print(f"Error {response.status_code}: {response.text}")
-        return []
+        print(f"Review too short for scoring: {review}")
+        return None
 
 
-# Adviti will work on function below
-def calculate_sentiment_from_analysis(analysis):
+def calculate_normalized_score(analysis):
     """Calculate sentiment score from emotion analysis."""
-    joy = analysis["emotion"]["document"]["emotion"]["joy"]
-    sadness = analysis["emotion"]["document"]["emotion"]["sadness"]
-    sentiment_score = joy - sadness
+    emotions = analysis["emotion"]["document"]["emotion"]
+    joy = emotions["joy"]
+    sadness = emotions["sadness"]
+    anger = emotions["anger"]
+    fear = emotions["fear"]
+    disgust = emotions["disgust"]
+    sentiment_score = joy - (sadness + anger + fear + disgust) / 4
     # Normalize the score to range between 0 and 1
     normalized_score = (sentiment_score + 1) / 2
     return normalized_score
 
-def extract_reviews_from_csv(file_path):
-    """Extract reviews for each hospital from the CSV, safely handling missing keys."""
-    reviews_data = {}
-    with open(file_path, 'r') as file:
-        reader = csv.DictReader(file)
-        for row in reader:
-            # BUG BELOW
-            print(row)
-            reviews_data[row["name"]] = row[" reviews"]
-            # BUG ABOVE
-    return reviews_data
 
 def calculate_average_sentiment(reviews):
-    """Calculate average sentiment for a list of reviews."""
+    """Calculate average sentiment and emotion scores for a list of reviews."""
     sentiment_scores = []
-    for review in reviews:
-        analysis = analyze_sentiment([review])  # Since analyze_sentiment expects a list
-        sentiment_score = calculate_sentiment_from_analysis(analysis[0])  # Get the first result
-        sentiment_scores.append(sentiment_score)
+    emotion_totals = {"joy": 0, "sadness": 0, "anger": 0, "fear": 0, "disgust": 0}
 
-    average_sentiment = sum(sentiment_scores) / len(sentiment_scores)
-    return average_sentiment
+    for review in reviews:
+        analysis = analyze_sentiment(review)  # analyze_sentiment now expects a single review
+        if analysis:  # Check if a valid analysis is returned
+            sentiment_score = calculate_normalized_score(analysis)
+            print(f"Finalized normalized score: {sentiment_score}")
+            sentiment_scores.append(sentiment_score)
+
+            for emotion in emotion_totals:
+                emotion_totals[emotion] += analysis["emotion"]["document"]["emotion"][emotion]
+
+    # Calculate average sentiment and emotions
+    num_reviews = len(sentiment_scores)
+    average_sentiment = sum(sentiment_scores) / num_reviews
+    average_emotions = {emotion: emotion_totals[emotion] / num_reviews for emotion in emotion_totals}
+
+    return average_sentiment, average_emotions
+
+
+def extract_data_from_csv(file_path):
+    """Extract name, latitude, longitude, and reviews for each hospital from the CSV."""
+    data = []
+    with open(file_path, 'r', encoding='utf-8-sig') as file:
+        reader = csv.DictReader(file)
+        for row in reader:
+            reviews = row["reviews"]
+            if reviews:  # Check if the reviews column isn't empty
+                # Given the structure of your data, the reviews seem to be encapsulated in double quotes
+                # and separated by commas within the double quotes. Therefore, we'll handle them as single strings.
+                data.append({
+                    "name": row["name"],
+                    "latitude": row["lat"],
+                    "longitude": row["long"],
+                    "reviews": [reviews]  # Wrapping it in a list to keep the structure consistent
+                })
+    return data
 
 
 def write_to_csv(data, file_path):
-    """Write hospital names and their average sentiments to a new CSV file."""
+    """Write hospital names, latitude, longitude, average sentiments, and average emotion scores to a new CSV file."""
     with open(file_path, 'w', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow(["Hospital Name", "Average Sentiment"])  # header
-        for hospital, sentiment in data.items():
-            writer.writerow([hospital, sentiment])
+        writer.writerow(["Hospital Name", "Latitude", "Longitude", "Average Sentiment", "Joy", "Sadness", "Anger", "Fear", "Disgust"])  # header
+        for item in data:
+            writer.writerow([item["name"], item["latitude"], item["longitude"], item["score"], item["emotions"]["joy"], item["emotions"]["sadness"], item["emotions"]["anger"], item["emotions"]["fear"], item["emotions"]["disgust"]])
 
     return f"Data written successfully to {file_path}"
 
@@ -113,20 +102,15 @@ def write_to_csv(data, file_path):
 @app.get("/")
 async def root():
     input_file_path = "MA_dataset.csv"
-    output_file_path = "Final_MA_dataset.csv"
+    extracted_data = extract_data_from_csv(input_file_path)
 
-    # Calculate average sentiment for each hospital
-    reviews_data = extract_reviews_from_csv(input_file_path)
-    print(f"Number of hospitals extracted: {len(reviews_data)}")
-
-    # Calculate average sentiment for each hospital
-    average_sentiments = {}
-    for hospital, reviews in reviews_data.items():
-        print(hospital)
-        avg_sentiment = calculate_average_sentiment(reviews)
-        average_sentiments[hospital] = avg_sentiment
+    # Calculate average sentiment for each hospital and update the data with the score and emotions
+    for item in extracted_data:
+        avg_sentiment, avg_emotions = calculate_average_sentiment(item["reviews"])
+        item["score"] = avg_sentiment
+        item["emotions"] = avg_emotions
 
     # Write results to new CSV file
-    message = write_to_csv(average_sentiments, output_file_path)
+    message = write_to_csv(extracted_data, "Final_MA_dataset1.csv")
 
     return {"message": message}
