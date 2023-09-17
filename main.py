@@ -65,6 +65,10 @@ def get_yelp_reviews(business_id: str):
         return []
 
 
+def calculate_review_sentiment(review):
+
+    return
+
 @app.get("/")
 async def root():
     return get_yelp_reviews("massachusetts-general-hospital-boston-4")
